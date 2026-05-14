@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hirebot
+      POSTGRES_PASSWORD: hirebot
+      POSTGRES_DB: hirebot
+    ports:
+      - "5432:5432"
+    volumes:
+      - hirebot_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hirebot -d hirebot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://hirebot:hirebot@db:5432/hirebot
+      SECRET_KEY: replace-with-long-random-secret
+      ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
+      UPLOAD_DIR: /data/uploads
+      CORS_ORIGINS: http://localhost:3000
+      # Align admin + seeded TAG bcrypt hashes each boot (fixes legacy TagDemo123! DBs during local dev).
+      UNIFY_DEMO_PASSWORDS: "true"
+    volumes:
+      - hirebot_uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    environment:
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  hirebot_pg:
+  hirebot_uploads:

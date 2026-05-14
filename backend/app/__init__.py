@@ -1,0 +1,1 @@
+"""HireBot backend application package."""
