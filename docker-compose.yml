@@ -23,7 +23,8 @@ services:
       SECRET_KEY: replace-with-long-random-secret
       ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
       UPLOAD_DIR: /data/uploads
-      CORS_ORIGINS: http://localhost:3000
+      # Comma-separated list; must include the exact browser origin (scheme+host+port). Override via .env for Azure/public IPs.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       # Align admin + seeded TAG bcrypt hashes each boot (fixes legacy TagDemo123! DBs during local dev).
       UNIFY_DEMO_PASSWORDS: "true"
     volumes:
@@ -38,7 +39,8 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+        # Baked in at image build time — set in .env for cloud VMs, then: docker compose build --no-cache frontend
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
     environment:
       PORT: "3000"
       HOSTNAME: 0.0.0.0

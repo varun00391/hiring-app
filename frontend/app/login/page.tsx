@@ -31,7 +31,13 @@ export default function LoginPage() {
       router.replace("/dashboard");
     } catch (err) {
       const ax = err as AxiosError<{ detail?: string | unknown }>;
-      const detail = ax.response?.data?.detail;
+      if (!ax.response) {
+        toast.error(
+          "Cannot reach the API from your browser. On a cloud VM, set CORS_ORIGINS and NEXT_PUBLIC_API_URL in a root `.env`, then rebuild the frontend image (`docker compose build --no-cache frontend`).",
+        );
+        return;
+      }
+      const detail = ax.response.data?.detail;
       let message = "Unable to sign in with those credentials";
       if (typeof detail === "string") {
         message = detail;
