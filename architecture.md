@@ -1,4 +1,4 @@
-# HireBot Version 1 — Architecture
+# HireBot Version 1 — Architecture [new]
 
 This companion to [`README2.md`](./README2.md) summarises how the hiring management system aligns with Version 1 mandates from [`version1.md`](./version1.md).
 
