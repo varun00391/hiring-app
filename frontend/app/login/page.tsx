@@ -33,7 +33,7 @@ export default function LoginPage() {
       const ax = err as AxiosError<{ detail?: string | unknown }>;
       if (!ax.response) {
         toast.error(
-          "Cannot reach the API from your browser. On a cloud VM, set CORS_ORIGINS and NEXT_PUBLIC_API_URL in a root `.env`, then rebuild the frontend image (`docker compose build --no-cache frontend`).",
+          "Cannot reach the API from your browser. On a cloud VM, set CORS_ORIGINS (exact browser origin) and NEXT_PUBLIC_API_URL in the repo root `.env`, then `docker compose up -d --force-recreate backend` and `docker compose build --no-cache frontend && docker compose up -d`.",
         );
         return;
       }
