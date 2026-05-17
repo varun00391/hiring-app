@@ -21,7 +21,7 @@
    & then again login using ssh -i vm1_key.pem azureuser@20.197.44.101
 
    - docker --version
-   - docker compose version #
+   - docker compose version ##
 
    Use **`docker compose`** (space) to run the stack, e.g. after cloning the repo:
 
