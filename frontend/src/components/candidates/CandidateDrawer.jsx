@@ -54,7 +54,7 @@ export default function CandidateDrawer({ candidate, open, onClose, onUpdated })
         className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
-      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-slate-200 bg-white shadow-2xl animate-in slide-in-from-right">
+      <aside className="glass-panel fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-slate-200/60 shadow-2xl shadow-slate-300/30 animate-in slide-in-from-right">
         <CandidateHeader
           candidate={candidate}
           onSendEmail={() => setEmailModalOpen(true)}

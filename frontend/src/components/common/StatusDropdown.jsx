@@ -10,7 +10,7 @@ export default function StatusDropdown({ value, onChange, disabled = false }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className={`w-full cursor-pointer appearance-none rounded-full border py-1.5 pl-3 pr-8 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:opacity-60 ${style}`}
+        className={`w-full cursor-pointer appearance-none rounded-full border py-1.5 pl-3 pr-8 text-xs font-semibold shadow-sm transition-all focus:outline-none focus:ring-4 focus:ring-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-60 ${style}`}
         aria-label="Interview status"
       >
         {INTERVIEW_STATUSES.map((status) => (
@@ -19,7 +19,7 @@ export default function StatusDropdown({ value, onChange, disabled = false }) {
           </option>
         ))}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-60" />
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-50" />
       <span className="sr-only">{getStatusLabel(value)}</span>
     </div>
   );

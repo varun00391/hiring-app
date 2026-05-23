@@ -112,9 +112,9 @@ export default function CandidateDetailsPage() {
         subtitle="Upload resumes, review parsed profiles, and manage hiring pipeline"
       />
 
-      <div className="space-y-6 p-8">
+      <div className="space-y-6 p-6 lg:p-8">
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm font-medium text-red-700 shadow-sm">
             {error}
           </div>
         )}

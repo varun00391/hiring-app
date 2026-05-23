@@ -58,8 +58,8 @@ export default function CandidateTable({
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 p-4">
+    <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-sm">
+      <div className="border-b border-slate-100 bg-slate-50/50 p-4 lg:p-5">
         <div className="grid gap-3 lg:grid-cols-4">
           <div className="lg:col-span-2">
             <SearchBar
@@ -71,7 +71,7 @@ export default function CandidateTable({
           <select
             value={statusFilter}
             onChange={(e) => onStatusFilterChange(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 text-sm text-slate-700 shadow-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/10"
           >
             <option value="">All statuses</option>
             {INTERVIEW_STATUSES.map((s) => (
@@ -83,7 +83,7 @@ export default function CandidateTable({
           <select
             value={roleFilter}
             onChange={(e) => onRoleFilterChange(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 text-sm text-slate-700 shadow-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/10"
           >
             <option value="">All roles</option>
             {roles.map((role) => (
@@ -97,7 +97,7 @@ export default function CandidateTable({
 
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-slate-200/80 bg-gradient-to-r from-slate-50 to-indigo-50/30 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               {SORTABLE_COLUMNS.map((col) => (
                 <th key={col.key} className="px-4 py-3 font-medium">
@@ -138,7 +138,7 @@ export default function CandidateTable({
               candidates.map((candidate) => (
                 <tr
                   key={candidate.id}
-                  className="border-b border-slate-100 transition hover:bg-slate-50/80"
+                  className="border-b border-slate-100/80 transition-colors hover:bg-indigo-50/30"
                 >
                   <td className="px-4 py-3 font-medium text-slate-900">
                     {candidate.full_name || "—"}
@@ -197,7 +197,7 @@ export default function CandidateTable({
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/40 px-4 py-3.5 text-sm text-slate-600 lg:px-5">
         <span>
           Showing {candidates.length} of {total} candidates
         </span>

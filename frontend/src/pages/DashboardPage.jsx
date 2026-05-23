@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   Briefcase,
   CalendarCheck,
@@ -11,6 +12,8 @@ import {
 } from "lucide-react";
 import Navbar from "../components/navbar/Navbar.jsx";
 import MetricCard from "../components/common/MetricCard.jsx";
+import AreaChartCard from "../components/charts/AreaChartCard.jsx";
+import LineChartCard from "../components/charts/LineChartCard.jsx";
 import BarChartCard from "../components/charts/BarChartCard.jsx";
 import PieChartCard from "../components/charts/PieChartCard.jsx";
 import RecentActivity from "../components/dashboard/RecentActivity.jsx";
@@ -39,6 +42,8 @@ export default function DashboardPage() {
     loadMetrics();
   }, [loadMetrics]);
 
+  const sparkline = metrics?.uploads_by_day?.map((d) => d.count) ?? [];
+
   return (
     <div>
       <Navbar
@@ -46,11 +51,15 @@ export default function DashboardPage() {
         subtitle="Hiring analytics and resume processing overview"
       />
 
-      <div className="space-y-6 p-8">
+      <div className="space-y-8 p-6 lg:p-8">
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm font-medium text-red-700 shadow-sm"
+          >
             {error}
-          </div>
+          </motion.div>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -58,50 +67,19 @@ export default function DashboardPage() {
             Array.from({ length: 8 }).map((_, i) => <MetricSkeleton key={i} />)
           ) : (
             <>
-              <MetricCard label="Total Uploaded" value={metrics.total_uploaded} icon={FileUp} />
+              <MetricCard index={0} label="Total Uploaded" value={metrics.total_uploaded} icon={FileUp} sparklineData={sparkline} />
+              <MetricCard index={1} label="Successfully Parsed" value={metrics.successfully_parsed} icon={CheckCircle2} accent="emerald" />
+              <MetricCard index={2} label="Failed Parsing" value={metrics.failed_parsing} icon={XCircle} accent="red" />
+              <MetricCard index={3} label="Shortlisted" value={metrics.shortlisted} icon={ThumbsUp} accent="emerald" />
+              <MetricCard index={4} label="Rejected" value={metrics.rejected} icon={ThumbsDown} accent="red" />
+              <MetricCard index={5} label="Interview Scheduled" value={metrics.interview_scheduled} icon={CalendarCheck} accent="violet" />
+              <MetricCard index={6} label="Active Recruiters" value={metrics.active_recruiters} icon={Users} accent="cyan" />
               <MetricCard
-                label="Successfully Parsed"
-                value={metrics.successfully_parsed}
-                icon={CheckCircle2}
-                accent="emerald"
-              />
-              <MetricCard
-                label="Failed Parsing"
-                value={metrics.failed_parsing}
-                icon={XCircle}
-                accent="red"
-              />
-              <MetricCard
-                label="Shortlisted"
-                value={metrics.shortlisted}
-                icon={ThumbsUp}
-                accent="emerald"
-              />
-              <MetricCard
-                label="Rejected"
-                value={metrics.rejected}
-                icon={ThumbsDown}
-                accent="red"
-              />
-              <MetricCard
-                label="Interview Scheduled"
-                value={metrics.interview_scheduled}
-                icon={CalendarCheck}
-                accent="violet"
-              />
-              <MetricCard
-                label="Active Recruiters"
-                value={metrics.active_recruiters}
-                icon={Users}
-                accent="amber"
-              />
-              <MetricCard
+                index={7}
                 label="Open Roles"
                 value={
                   new Set(
-                    metrics.recent_uploads
-                      .map((u) => u.position_applied)
-                      .filter(Boolean),
+                    metrics.recent_uploads.map((u) => u.position_applied).filter(Boolean),
                   ).size
                 }
                 icon={Briefcase}
@@ -116,8 +94,9 @@ export default function DashboardPage() {
             {loading ? (
               <ChartSkeleton />
             ) : (
-              <BarChartCard
-                title="Recent Upload Activity"
+              <AreaChartCard
+                title="Upload Activity"
+                subtitle="Daily resume uploads over the last 7 days"
                 data={metrics.uploads_by_day}
                 dataKey="count"
                 labelKey="label"
@@ -129,11 +108,38 @@ export default function DashboardPage() {
               <ChartSkeleton />
             ) : (
               <PieChartCard
-                title="Candidate Status Distribution"
+                title="Pipeline Status"
+                subtitle="Distribution by hiring stage"
                 data={metrics.status_distribution}
               />
             )}
           </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {loading ? (
+            <>
+              <ChartSkeleton />
+              <ChartSkeleton />
+            </>
+          ) : (
+            <>
+              <LineChartCard
+                title="Processing Trend"
+                subtitle="Upload volume trend line"
+                data={metrics.uploads_by_day}
+                dataKey="count"
+                labelKey="label"
+              />
+              <BarChartCard
+                title="Weekly Comparison"
+                subtitle="Bar breakdown by day"
+                data={metrics.uploads_by_day}
+                dataKey="count"
+                labelKey="label"
+              />
+            </>
+          )}
         </div>
 
         {!loading && <RecentActivity uploads={metrics.recent_uploads} />}
