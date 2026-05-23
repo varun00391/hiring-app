@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from app.api.dependencies import get_inbox_poller_service
 from app.api.routes import candidates, dashboard, email_routes, health, interview_routes, resume
@@ -50,6 +51,14 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router, prefix=settings.api_prefix)
     app.include_router(email_routes.router, prefix=settings.api_prefix)
     app.include_router(interview_routes.router, prefix=settings.api_prefix)
+
+    @app.get("/", include_in_schema=False)
+    async def root() -> RedirectResponse:
+        return RedirectResponse(url=f"{settings.api_prefix}/docs")
+
+    @app.get("/docs", include_in_schema=False)
+    async def docs_redirect() -> RedirectResponse:
+        return RedirectResponse(url=f"{settings.api_prefix}/docs")
 
     return app
 
