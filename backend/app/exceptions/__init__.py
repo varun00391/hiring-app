@@ -2,7 +2,9 @@
 
 from app.exceptions.errors import (
     AppError,
+    CandidateNotFoundError,
     CorruptedFileError,
+    EmailSendError,
     ExtractionError,
     FileTooLargeError,
     LLMParsingError,
@@ -11,7 +13,9 @@ from app.exceptions.errors import (
 
 __all__ = [
     "AppError",
+    "CandidateNotFoundError",
     "CorruptedFileError",
+    "EmailSendError",
     "ExtractionError",
     "FileTooLargeError",
     "LLMParsingError",

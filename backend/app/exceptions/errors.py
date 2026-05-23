@@ -38,3 +38,13 @@ class ExtractionError(AppError):
 class LLMParsingError(AppError):
     status_code = 502
     error_code = "llm_parsing_failed"
+
+
+class CandidateNotFoundError(AppError):
+    status_code = 404
+    error_code = "candidate_not_found"
+
+
+class EmailSendError(AppError):
+    status_code = 502
+    error_code = "email_send_failed"

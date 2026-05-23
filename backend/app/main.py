@@ -5,7 +5,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import health, resume
+from app.api.dependencies import get_inbox_poller_service
+from app.api.routes import candidates, dashboard, email_routes, health, interview_routes, resume
 from app.config import get_settings
 from app.exceptions.handlers import register_exception_handlers
 from app.utils.logging import setup_logging
@@ -15,7 +16,10 @@ from app.utils.logging import setup_logging
 async def lifespan(_: FastAPI):
     settings = get_settings()
     setup_logging(settings)
+    poller = get_inbox_poller_service()
+    await poller.start()
     yield
+    await poller.stop()
 
 
 def create_app() -> FastAPI:
@@ -42,6 +46,10 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix=settings.api_prefix)
     app.include_router(resume.router, prefix=settings.api_prefix)
+    app.include_router(candidates.router, prefix=settings.api_prefix)
+    app.include_router(dashboard.router, prefix=settings.api_prefix)
+    app.include_router(email_routes.router, prefix=settings.api_prefix)
+    app.include_router(interview_routes.router, prefix=settings.api_prefix)
 
     return app
 
