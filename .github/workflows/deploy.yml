@@ -169,10 +169,14 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
 
       # -----------------------------------------------------------------------
-      # Copy .env to VM (secure file permissions on remote)
+      # Copy production compose + .env to VM (secure file permissions on remote)
       # -----------------------------------------------------------------------
-      - name: Copy .env to VM
+      - name: Copy compose and .env to VM
         run: |
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -i ~/.ssh/id_rsa \
+            infra/docker-compose.prod.yml \
+            "${{ env.VM_USERNAME }}@${{ steps.vm.outputs.public_ip }}:/home/azureuser/app/docker-compose.yml"
           scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
             -i ~/.ssh/id_rsa \
             .env "${{ env.VM_USERNAME }}@${{ steps.vm.outputs.public_ip }}:/home/azureuser/app/.env"
@@ -188,6 +192,7 @@ jobs:
             "${{ env.VM_USERNAME }}@${{ steps.vm.outputs.public_ip }}" << 'REMOTE_EOF'
           set -euo pipefail
           cd /home/azureuser/app
+          [[ -f docker-compose.yml ]] || { echo "docker-compose.yml missing in /home/azureuser/app" >&2; exit 1; }
 
           # Read ACR_NAME without sourcing .env (values with spaces break bash source)
           ACR_NAME="$(grep -m1 '^ACR_NAME=' .env | cut -d= -f2- | tr -d '\r"')"

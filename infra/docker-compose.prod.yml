@@ -1,0 +1,37 @@
+# HireBot production compose - images built in CI, pulled on VM
+# Uses Docker Compose V2: `docker compose` (not legacy docker-compose)
+
+services:
+  backend:
+    image: ${ACR_LOGIN_SERVER}/hirebot-backend:${IMAGE_TAG:-latest}
+    container_name: hirebot-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:8080"]}
+    volumes:
+      - upload-tmp:/tmp/hirebot/uploads
+      - app-data:/tmp/hirebot/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: ${ACR_LOGIN_SERVER}/hirebot-frontend:${IMAGE_TAG:-latest}
+    container_name: hirebot-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  upload-tmp:
+  app-data:
