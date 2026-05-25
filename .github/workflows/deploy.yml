@@ -154,6 +154,7 @@ jobs:
             echo "IMAGE_TAG=${{ env.IMAGE_TAG }}"
             echo "ACR_NAME=${{ env.ACR_NAME }}"
           } >> .env
+          python3 infra/normalize_env.py .env
           chmod 600 .env
           echo ".env created ($(wc -l < .env) lines)"
           echo "CORS_ORIGINS=${{ steps.vm.outputs.cors_origins }}"
