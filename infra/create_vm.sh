@@ -52,6 +52,28 @@ resource_exists() {
   "$@" >/dev/null 2>&1
 }
 
+# Azure CLI --custom-data must be latin-1 encodable (ASCII-safe).
+prepare_custom_data() {
+  local src="$1"
+  local dest
+  dest="$(mktemp)"
+  python3 - "$src" "$dest" <<'PY'
+import sys
+
+src, dest = sys.argv[1], sys.argv[2]
+text = open(src, encoding="utf-8").read()
+for old, new in [
+    ("\u2014", "-"), ("\u2013", "-"),
+    ("\u2018", "'"), ("\u2019", "'"),
+    ("\u201c", '"'), ("\u201d", '"'),
+]:
+    text = text.replace(old, new)
+text = text.encode("latin-1", errors="replace").decode("latin-1")
+open(dest, "w", encoding="latin-1").write(text)
+PY
+  echo "$dest"
+}
+
 # ---------------------------------------------------------------------------
 # Pre-flight
 # ---------------------------------------------------------------------------
@@ -186,6 +208,8 @@ if resource_exists az vm show --resource-group "$RESOURCE_GROUP" --name "$VM_NAM
   warn "VM '$VM_NAME' already exists — skipping VM create."
 else
   log "Creating VM '$VM_NAME' with cloud-init bootstrap..."
+  CUSTOM_DATA_FILE="$(prepare_custom_data "$CLOUD_INIT_FILE")"
+  trap 'rm -f "$CUSTOM_DATA_FILE"' RETURN
   az vm create \
     --resource-group "$RESOURCE_GROUP" \
     --name "$VM_NAME" \
@@ -197,7 +221,7 @@ else
     --authentication-type ssh \
     --ssh-key-values "$SSH_PUBLIC_KEY" \
     --assign-identity \
-    --custom-data "$CLOUD_INIT_FILE" \
+    --custom-data "$CUSTOM_DATA_FILE" \
     --os-disk-name "${VM_NAME}-osdisk" \
     --storage-sku Premium_LRS \
     --tags project=hirebot managed-by=github-actions \
