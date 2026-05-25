@@ -1,0 +1,227 @@
+# =============================================================================
+# Deployment Workflow — build in CI, pull & run on Azure VM
+#
+# Triggers on push to the deployment branch only.
+# Does NOT recreate VM or ACR — application deploy only.
+#
+# Steps:
+#   1. Resolve VM public IP and derive VITE_API_BASE_URL + CORS_ORIGINS
+#   2. Build backend + frontend Docker images in GitHub Actions
+#   3. Push images to ACR (tags: latest + commit SHA)
+#   4. Create .env from GitHub Secret ENV_FILE (never stored in repo)
+#   5. SCP .env to VM
+#   6. SSH: ACR login, docker compose pull, docker compose up -d
+# =============================================================================
+
+name: Deploy
+
+on:
+  push:
+    branches:
+      - v2-clean
+
+permissions:
+  contents: read
+
+env:
+  RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+  ACR_NAME: ${{ secrets.ACR_NAME }}
+  VM_NAME: hirebot-vm
+  VM_USERNAME: ${{ secrets.VM_USERNAME }}
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    name: Build, Push, Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Source code — used only to BUILD images in CI (VM does not clone repo)
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Azure authentication (push to ACR + resolve VM public IP)
+      # -----------------------------------------------------------------------
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # -----------------------------------------------------------------------
+      # Resolve VM public IP and derive frontend API URL + backend CORS origin.
+      # Optional PUBLIC_BASE_URL repo variable overrides IP-based URLs (domain/HTTPS).
+      # -----------------------------------------------------------------------
+      - name: Resolve deployment URLs
+        id: vm
+        env:
+          PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+        run: |
+          set -euo pipefail
+
+          VM_IP="$(az vm show -d \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --name "${{ env.VM_NAME }}" \
+            --query publicIps \
+            --output tsv)"
+
+          if [[ -z "$VM_IP" ]]; then
+            echo "Failed to resolve VM public IP for ${{ env.VM_NAME }}" >&2
+            exit 1
+          fi
+
+          echo "public_ip=$VM_IP" >> "$GITHUB_OUTPUT"
+
+          if [[ -n "${PUBLIC_BASE_URL:-}" ]]; then
+            BASE="${PUBLIC_BASE_URL%/}"
+            echo "vite_api_base_url=${BASE}/api/v1" >> "$GITHUB_OUTPUT"
+            echo "cors_origins=[\"${BASE}\"]" >> "$GITHUB_OUTPUT"
+            echo "Resolved deployment URLs from PUBLIC_BASE_URL: $BASE"
+          else
+            echo "vite_api_base_url=http://${VM_IP}:8000/api/v1" >> "$GITHUB_OUTPUT"
+            echo "cors_origins=[\"http://${VM_IP}:8080\"]" >> "$GITHUB_OUTPUT"
+            echo "Resolved deployment URLs from VM public IP: $VM_IP"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Resolve ACR login server for docker tag/push
+      # -----------------------------------------------------------------------
+      - name: Resolve ACR login server
+        id: acr
+        run: |
+          LOGIN_SERVER="$(az acr show \
+            --name "${{ env.ACR_NAME }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --query loginServer \
+            --output tsv)"
+          echo "login_server=$LOGIN_SERVER" >> "$GITHUB_OUTPUT"
+          echo "ACR login server: $LOGIN_SERVER"
+
+      # -----------------------------------------------------------------------
+      # Login Docker daemon to ACR
+      # -----------------------------------------------------------------------
+      - name: Login to Azure Container Registry
+        run: az acr login --name "${{ env.ACR_NAME }}"
+
+      # -----------------------------------------------------------------------
+      # Build backend image in GitHub Actions (NOT on VM)
+      # -----------------------------------------------------------------------
+      - name: Build backend Docker image
+        run: |
+          docker build \
+            -t "${{ steps.acr.outputs.login_server }}/hirebot-backend:latest" \
+            -t "${{ steps.acr.outputs.login_server }}/hirebot-backend:${{ env.IMAGE_TAG }}" \
+            ./backend
+
+      # -----------------------------------------------------------------------
+      # Build frontend image — VITE_API_BASE_URL baked in at build time from VM IP
+      # -----------------------------------------------------------------------
+      - name: Build frontend Docker image
+        run: |
+          docker build \
+            --build-arg VITE_API_BASE_URL="${{ steps.vm.outputs.vite_api_base_url }}" \
+            -t "${{ steps.acr.outputs.login_server }}/hirebot-frontend:latest" \
+            -t "${{ steps.acr.outputs.login_server }}/hirebot-frontend:${{ env.IMAGE_TAG }}" \
+            ./frontend
+
+      # -----------------------------------------------------------------------
+      # Push both images to ACR
+      # -----------------------------------------------------------------------
+      - name: Push images to ACR
+        run: |
+          REGISTRY="${{ steps.acr.outputs.login_server }}"
+          TAG="${{ env.IMAGE_TAG }}"
+          docker push "${REGISTRY}/hirebot-backend:latest"
+          docker push "${REGISTRY}/hirebot-backend:${TAG}"
+          docker push "${REGISTRY}/hirebot-frontend:latest"
+          docker push "${REGISTRY}/hirebot-frontend:${TAG}"
+
+      # -----------------------------------------------------------------------
+      # Create .env dynamically from GitHub Secrets — NEVER commit to repo
+      # Strip localhost CORS/VITE lines; inject deploy-time values from VM IP
+      # -----------------------------------------------------------------------
+      - name: Generate .env from secrets
+        run: |
+          echo "${{ secrets.ENV_FILE }}" | grep -vE '^(CORS_ORIGINS|VITE_API_BASE_URL)=' > .env
+          {
+            echo ""
+            echo "# --- Injected by GitHub Actions deploy workflow ---"
+            echo "CORS_ORIGINS=${{ steps.vm.outputs.cors_origins }}"
+            echo "ACR_LOGIN_SERVER=${{ steps.acr.outputs.login_server }}"
+            echo "IMAGE_TAG=${{ env.IMAGE_TAG }}"
+            echo "ACR_NAME=${{ env.ACR_NAME }}"
+          } >> .env
+          chmod 600 .env
+          echo ".env created ($(wc -l < .env) lines)"
+          echo "CORS_ORIGINS=${{ steps.vm.outputs.cors_origins }}"
+          echo "VITE_API_BASE_URL=${{ steps.vm.outputs.vite_api_base_url }}"
+
+      # -----------------------------------------------------------------------
+      # Configure SSH for SCP + remote commands
+      # -----------------------------------------------------------------------
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      # -----------------------------------------------------------------------
+      # Copy .env to VM (secure file permissions on remote)
+      # -----------------------------------------------------------------------
+      - name: Copy .env to VM
+        run: |
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -i ~/.ssh/id_rsa \
+            .env "${{ env.VM_USERNAME }}@${{ steps.vm.outputs.public_ip }}:/home/azureuser/app/.env"
+
+      # -----------------------------------------------------------------------
+      # Remote deploy: ACR login via managed identity, pull, compose up
+      # Uses Docker Compose V2: `docker compose` (NOT docker-compose)
+      # -----------------------------------------------------------------------
+      - name: Deploy on VM
+        run: |
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -i ~/.ssh/id_rsa \
+            "${{ env.VM_USERNAME }}@${{ steps.vm.outputs.public_ip }}" << 'REMOTE_EOF'
+          set -euo pipefail
+          cd /home/azureuser/app
+
+          # Load ACR_NAME from .env for managed-identity login
+          set -a
+          # shellcheck disable=SC1091
+          source .env
+          set +a
+
+          echo "[remote] Logging into ACR..."
+          az login --identity --output none
+          az acr login --name "$ACR_NAME" --output none
+
+          echo "[remote] Pulling images..."
+          docker compose pull
+
+          echo "[remote] Restarting containers..."
+          docker compose up -d --remove-orphans
+
+          echo "[remote] Running containers:"
+          docker compose ps
+          REMOTE_EOF
+
+      # -----------------------------------------------------------------------
+      # Deployment summary
+      # -----------------------------------------------------------------------
+      - name: Deployment summary
+        run: |
+          echo "## Deployment complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Item | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image Tag | \`${{ env.IMAGE_TAG }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| VM Public IP | \`${{ steps.vm.outputs.public_ip }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| VITE_API_BASE_URL | \`${{ steps.vm.outputs.vite_api_base_url }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| CORS_ORIGINS | \`${{ steps.vm.outputs.cors_origins }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Backend | \`:8000\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Frontend | \`:8080\` |" >> "$GITHUB_STEP_SUMMARY"

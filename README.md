@@ -58,8 +58,8 @@ Candidate, communication, interview, and activity records are persisted as JSON 
 ### Run with Docker
 
 ```bash
-cp backend/.env.example backend/.env
-# Set GROQ_API_KEY in backend/.env
+cp .env.example .env
+# Set GROQ_API_KEY in .env
 
 docker compose up --build
 ```
@@ -72,10 +72,11 @@ docker compose up --build
 **Backend**
 
 ```bash
+cp .env.example .env   # from repo root; configure GROQ_API_KEY and optional SMTP/IMAP
+
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # configure GROQ_API_KEY and optional SMTP/IMAP
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -84,8 +85,7 @@ uvicorn app.main:app --reload --port 8000
 ```bash
 cd frontend
 npm install
-cp .env.example .env     # VITE_API_BASE_URL defaults to http://localhost:8000/api/v1
-npm run dev
+npm run dev   # reads VITE_API_BASE_URL from ../.env
 ```
 
 Frontend dev server: http://localhost:5173

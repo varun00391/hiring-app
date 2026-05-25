@@ -1,0 +1,128 @@
+# =============================================================================
+# Infrastructure Workflow — one-time / manual Azure provisioning
+#
+# Creates:
+#   - Resource Group + Azure Container Registry (create_acr.sh)
+#   - VM + networking + NSG + cloud-init bootstrap (create_vm.sh)
+#   - Waits for VM readiness (wait_for_vm.sh)
+#
+# Does NOT build or deploy application containers.
+# Run manually via workflow_dispatch when setting up a new environment.
+# =============================================================================
+
+name: Infrastructure
+
+on:
+  # Manual trigger only — infrastructure should not run on every push
+  workflow_dispatch:
+    inputs:
+      location:
+        description: Azure region
+        required: false
+        default: eastus
+      vm_size:
+        description: Azure VM SKU
+        required: false
+        default: Standard_B2s
+
+permissions:
+  contents: read
+
+env:
+  RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+  ACR_NAME: ${{ secrets.ACR_NAME }}
+  LOCATION: ${{ github.event.inputs.location || 'eastus' }}
+  VM_SIZE: ${{ github.event.inputs.vm_size || 'Standard_B2s' }}
+  VM_NAME: hirebot-vm
+  ADMIN_USERNAME: azureuser
+
+jobs:
+  provision:
+    name: Provision Azure Infrastructure
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Checkout — needed for infra/ scripts and cloud-init.yml
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Azure login via service principal JSON stored in GitHub Secrets
+      # AZURE_CREDENTIALS format:
+      #   {"clientId":"...","clientSecret":"...","subscriptionId":"...","tenantId":"..."}
+      # -----------------------------------------------------------------------
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # -----------------------------------------------------------------------
+      # Create Resource Group + ACR (idempotent)
+      # -----------------------------------------------------------------------
+      - name: Create Azure Container Registry
+        id: acr
+        run: |
+          chmod +x infra/create_acr.sh
+          ./infra/create_acr.sh
+        env:
+          RESOURCE_GROUP: ${{ env.RESOURCE_GROUP }}
+          ACR_NAME: ${{ env.ACR_NAME }}
+          LOCATION: ${{ env.LOCATION }}
+
+      # -----------------------------------------------------------------------
+      # Write SSH private key for wait_for_vm.sh (public key was used at VM create)
+      # -----------------------------------------------------------------------
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      # -----------------------------------------------------------------------
+      # Create VM, networking, NSG rules, attach cloud-init
+      # -----------------------------------------------------------------------
+      - name: Create Azure VM
+        id: vm
+        run: |
+          chmod +x infra/create_vm.sh
+          ./infra/create_vm.sh
+        env:
+          RESOURCE_GROUP: ${{ env.RESOURCE_GROUP }}
+          ACR_NAME: ${{ env.ACR_NAME }}
+          LOCATION: ${{ env.LOCATION }}
+          VM_NAME: ${{ env.VM_NAME }}
+          VM_SIZE: ${{ env.VM_SIZE }}
+          ADMIN_USERNAME: ${{ env.ADMIN_USERNAME }}
+          SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+
+      # -----------------------------------------------------------------------
+      # Block until SSH works and cloud-init finishes bootstrapping Docker
+      # -----------------------------------------------------------------------
+      - name: Wait for VM bootstrap
+        run: |
+          chmod +x infra/wait_for_vm.sh
+          ./infra/wait_for_vm.sh
+        env:
+          VM_HOST: ${{ steps.vm.outputs.vm_public_ip }}
+          VM_USERNAME: ${{ env.ADMIN_USERNAME }}
+          SSH_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
+
+      # -----------------------------------------------------------------------
+      # Summary — update GitHub secrets manually with these values if needed
+      # -----------------------------------------------------------------------
+      - name: Infrastructure summary
+        run: |
+          echo "## Infrastructure provisioned" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Resource | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|----------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Resource Group | ${{ env.RESOURCE_GROUP }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ACR Name | ${{ env.ACR_NAME }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ACR Login Server | ${{ steps.acr.outputs.acr_login_server }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| VM Public IP | ${{ steps.vm.outputs.vm_public_ip }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| VM Username | ${{ env.ADMIN_USERNAME }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deploy workflow resolves the VM public IP automatically — no \`VM_HOST\` secret required." >> "$GITHUB_STEP_SUMMARY"

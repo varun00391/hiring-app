@@ -1,0 +1,161 @@
+#cloud-config
+# =============================================================================
+# cloud-init.yml — First-boot bootstrap for HireBot Azure VM
+#
+# This file is attached to the VM at creation time via `az vm create --custom-data`.
+# cloud-init runs once on first boot and:
+#   - Installs Docker Engine + Compose V2 plugin
+#   - Installs Azure CLI (for `az acr login --identity` during deploy)
+#   - Creates /home/azureuser/app with a production docker-compose.yml
+#   - Prepares directories and permissions
+#
+# The VM does NOT clone the GitHub repo or build images.
+# GitHub Actions builds images, pushes to ACR, copies .env, and runs compose.
+# =============================================================================
+
+# Run all commands as root unless noted
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - git
+  - apt-transport-https
+  - jq
+
+write_files:
+  # -------------------------------------------------------------------------
+  # Production docker-compose.yml — pulls pre-built images from ACR
+  # Image names/tags are resolved from .env (copied by GitHub Actions deploy)
+  # -------------------------------------------------------------------------
+  - path: /home/azureuser/app/docker-compose.yml
+    owner: azureuser:azureuser
+    permissions: "0644"
+    content: |
+      # HireBot production compose — images built in CI, pulled on VM
+      # Uses Docker Compose V2: `docker compose` (not legacy docker-compose)
+
+      services:
+        backend:
+          image: ${ACR_LOGIN_SERVER}/hirebot-backend:${IMAGE_TAG:-latest}
+          container_name: hirebot-backend
+          ports:
+            - "8000:8000"
+          env_file:
+            - .env
+          environment:
+            # Override CORS for production frontend origin if set in .env
+            - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:8080"]}
+          volumes:
+            - upload-tmp:/tmp/hirebot/uploads
+            - app-data:/tmp/hirebot/data
+          restart: unless-stopped
+          healthcheck:
+            # python:3.12-slim has no curl; use stdlib urllib
+            test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')\""]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+
+        frontend:
+          image: ${ACR_LOGIN_SERVER}/hirebot-frontend:${IMAGE_TAG:-latest}
+          container_name: hirebot-frontend
+          ports:
+            - "8080:80"
+          depends_on:
+            backend:
+              condition: service_healthy
+          restart: unless-stopped
+
+      volumes:
+        upload-tmp:
+        app-data:
+
+  # Helper script invoked by GitHub Actions over SSH during deploy
+  - path: /home/azureuser/app/deploy.sh
+    owner: azureuser:azureuser
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      cd /home/azureuser/app
+
+      ACR_NAME="${ACR_NAME:-}"
+      if [[ -z "$ACR_NAME" ]]; then
+        echo "ACR_NAME env var required for ACR login" >&2
+        exit 1
+      fi
+
+      echo "[deploy] Logging into ACR via managed identity..."
+      az login --identity --output none
+      az acr login --name "$ACR_NAME" --output none
+
+      echo "[deploy] Pulling latest images..."
+      docker compose pull
+
+      echo "[deploy] Starting containers..."
+      docker compose up -d --remove-orphans
+
+      echo "[deploy] Container status:"
+      docker compose ps
+
+runcmd:
+  # -------------------------------------------------------------------------
+  # Install Docker Engine (official convenience script)
+  # -------------------------------------------------------------------------
+  - curl -fsSL https://get.docker.com | sh
+
+  # -------------------------------------------------------------------------
+  # Install Docker Compose V2 plugin (NOT legacy docker-compose standalone)
+  # -------------------------------------------------------------------------
+  - mkdir -p /usr/local/lib/docker/cli-plugins
+  - |
+    COMPOSE_VERSION="$(curl -fsSL https://api.github.com/repos/docker/compose/releases/latest | jq -r .tag_name)"
+    curl -fsSL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-$(uname -m)" \
+      -o /usr/local/lib/docker/cli-plugins/docker-compose
+  - chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+  # -------------------------------------------------------------------------
+  # Install Azure CLI (for managed-identity ACR login during deploy)
+  # -------------------------------------------------------------------------
+  - curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+  # -------------------------------------------------------------------------
+  # Add azureuser to docker group and enable Docker service
+  # -------------------------------------------------------------------------
+  - usermod -aG docker azureuser
+  - systemctl enable docker
+  - systemctl start docker
+
+  # -------------------------------------------------------------------------
+  # Create application directory (compose file written above via write_files)
+  # -------------------------------------------------------------------------
+  - mkdir -p /home/azureuser/app
+  - chown -R azureuser:azureuser /home/azureuser/app
+  - chmod 700 /home/azureuser/app
+
+  # Placeholder .env — overwritten by GitHub Actions deploy workflow via SCP
+  - |
+    cat > /home/azureuser/app/.env <<'ENVEOF'
+    # Placeholder — replaced on every deploy by GitHub Actions
+    # Do not store secrets in this file on the VM long-term without proper permissions
+    ENVEOF
+  - chown azureuser:azureuser /home/azureuser/app/.env
+  - chmod 600 /home/azureuser/app/.env
+
+  # -------------------------------------------------------------------------
+  # Verify installations (fail fast if bootstrap broken)
+  # -------------------------------------------------------------------------
+  - docker --version
+  - docker compose version
+  - git --version
+  - az version
+
+  # Signal successful bootstrap
+  - touch /var/lib/cloud/instance/hirebot-bootstrap-complete
+
+final_message: "HireBot VM bootstrap complete after $UPTIME seconds. Docker + Compose V2 ready."
