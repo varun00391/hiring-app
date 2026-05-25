@@ -11,6 +11,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Navbar from "../components/navbar/Navbar.jsx";
+import ThemeToggle from "../components/common/ThemeToggle.jsx";
 import MetricCard from "../components/common/MetricCard.jsx";
 import AreaChartCard from "../components/charts/AreaChartCard.jsx";
 import LineChartCard from "../components/charts/LineChartCard.jsx";
@@ -49,6 +50,7 @@ export default function DashboardPage() {
       <Navbar
         title="Dashboard"
         subtitle="Hiring analytics and resume processing overview"
+        actions={<ThemeToggle />}
       />
 
       <div className="space-y-8 p-6 lg:p-8">
@@ -56,7 +58,7 @@ export default function DashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm font-medium text-red-700 shadow-sm"
+            className="rounded-xl border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm font-medium text-red-700 shadow-sm dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-300"
           >
             {error}
           </motion.div>

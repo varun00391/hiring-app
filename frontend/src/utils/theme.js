@@ -28,6 +28,27 @@ export const DONUT_COLORS = [
   "#64748b",
 ];
 
+export const CHART_SURFACE = {
+  light: {
+    grid: "#e2e8f0",
+    tick: "#64748b",
+    cursor: "rgb(99 102 241 / 0.06)",
+    pieStroke: "#ffffff",
+    dotStroke: "#ffffff",
+  },
+  dark: {
+    grid: "#334155",
+    tick: "#94a3b8",
+    cursor: "rgb(99 102 241 / 0.12)",
+    pieStroke: "#0f172a",
+    dotStroke: "#1e293b",
+  },
+};
+
+export function getChartSurface(isDark) {
+  return isDark ? CHART_SURFACE.dark : CHART_SURFACE.light;
+}
+
 export const ACCENT_STYLES = {
   indigo: {
     icon: "bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-lg shadow-indigo-500/25",

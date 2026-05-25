@@ -12,6 +12,8 @@ import Card, { CardHeader } from "../ui/Card.jsx";
 import ChartTooltip from "../ui/ChartTooltip.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import { BarChart3 } from "lucide-react";
+import { useTheme } from "../../contexts/ThemeContext.jsx";
+import { getChartSurface } from "../../utils/theme.js";
 
 const BAR_COLORS = ["#6366f1", "#818cf8", "#06b6d4", "#8b5cf6", "#10b981", "#f59e0b", "#64748b"];
 
@@ -22,6 +24,9 @@ export default function BarChartCard({
   dataKey = "count",
   labelKey = "label",
 }) {
+  const { isDark } = useTheme();
+  const surface = getChartSurface(isDark);
+
   if (!data.length) {
     return (
       <Card hover={false}>
@@ -45,20 +50,20 @@ export default function BarChartCard({
                 </linearGradient>
               ))}
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={surface.grid} vertical={false} />
             <XAxis
               dataKey={labelKey}
-              tick={{ fill: "#64748b", fontSize: 12 }}
+              tick={{ fill: surface.tick, fontSize: 12 }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
               allowDecimals={false}
-              tick={{ fill: "#64748b", fontSize: 12 }}
+              tick={{ fill: surface.tick, fontSize: 12 }}
               axisLine={false}
               tickLine={false}
             />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgb(99 102 241 / 0.06)" }} />
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: surface.cursor }} />
             <Bar dataKey={dataKey} name="Count" radius={[8, 8, 0, 0]} animationDuration={700}>
               {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={`url(#barGrad${index % BAR_COLORS.length})`} />

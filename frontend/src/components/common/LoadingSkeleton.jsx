@@ -18,7 +18,7 @@ export function TableSkeleton({ rows = 5, cols = 8 }) {
 
 export function MetricSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-sm dark:border-slate-700/80 dark:bg-slate-900/80">
       <div className="skeleton-shimmer h-4 w-28 rounded-md" />
       <div className="skeleton-shimmer mt-4 h-9 w-20 rounded-md" />
       <div className="skeleton-shimmer mt-4 h-10 w-full rounded-md" />
@@ -28,7 +28,7 @@ export function MetricSkeleton() {
 
 export function ChartSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-6 shadow-sm">
+    <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-6 shadow-sm dark:border-slate-700/80 dark:bg-slate-900/80">
       <div className="skeleton-shimmer mb-2 h-5 w-40 rounded-md" />
       <div className="skeleton-shimmer mb-6 h-3 w-56 rounded-md" />
       <div className="skeleton-shimmer h-64 rounded-xl" />
@@ -38,7 +38,7 @@ export function ChartSkeleton() {
 
 export function ListSkeleton({ rows = 4 }) {
   return (
-    <div className="divide-y divide-slate-100">
+    <div className="divide-y divide-slate-100 dark:divide-slate-800">
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex items-center gap-4 px-6 py-4">
           <div className="skeleton-shimmer h-10 w-10 shrink-0 rounded-full" />

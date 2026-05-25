@@ -3,9 +3,12 @@ import Card, { CardHeader } from "../ui/Card.jsx";
 import ChartTooltip from "../ui/ChartTooltip.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import { PieChart as PieIcon } from "lucide-react";
-import { DONUT_COLORS } from "../../utils/theme.js";
+import { DONUT_COLORS, getChartSurface } from "../../utils/theme.js";
+import { useTheme } from "../../contexts/ThemeContext.jsx";
 
 export default function PieChartCard({ title, subtitle, data = [] }) {
+  const { isDark } = useTheme();
+  const surface = getChartSurface(isDark);
   const chartData = data.map((item) => ({
     name: item.status.replace(/_/g, " "),
     value: item.count,
@@ -48,7 +51,7 @@ export default function PieChartCard({ title, subtitle, data = [] }) {
                 <Cell
                   key={entry.name}
                   fill={DONUT_COLORS[index % DONUT_COLORS.length]}
-                  stroke="white"
+                  stroke={surface.pieStroke}
                   strokeWidth={2}
                 />
               ))}
@@ -57,22 +60,22 @@ export default function PieChartCard({ title, subtitle, data = [] }) {
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-bold text-slate-900">{total}</span>
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Total</span>
+          <span className="text-3xl font-bold text-slate-900 dark:text-slate-100">{total}</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Total</span>
         </div>
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2">
         {chartData.map((item, index) => (
           <div
             key={item.name}
-            className="flex items-center gap-2 rounded-lg bg-slate-50/80 px-2.5 py-2 text-xs text-slate-600"
+            className="flex items-center gap-2 rounded-lg bg-slate-50/80 px-2.5 py-2 text-xs text-slate-600 dark:bg-slate-800/80 dark:text-slate-400"
           >
             <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white"
+              className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white dark:ring-slate-900"
               style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }}
             />
             <span className="truncate capitalize">{item.name}</span>
-            <span className="ml-auto font-semibold text-slate-900">{item.value}</span>
+            <span className="ml-auto font-semibold text-slate-900 dark:text-slate-100">{item.value}</span>
           </div>
         ))}
       </div>

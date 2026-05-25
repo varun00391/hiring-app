@@ -11,6 +11,8 @@ import Card, { CardHeader } from "../ui/Card.jsx";
 import ChartTooltip from "../ui/ChartTooltip.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import { BarChart3 } from "lucide-react";
+import { useTheme } from "../../contexts/ThemeContext.jsx";
+import { getChartSurface } from "../../utils/theme.js";
 
 export default function AreaChartCard({
   title,
@@ -19,6 +21,9 @@ export default function AreaChartCard({
   dataKey = "count",
   labelKey = "label",
 }) {
+  const { isDark } = useTheme();
+  const surface = getChartSurface(isDark);
+
   if (!data.length) {
     return (
       <Card hover={false}>
@@ -48,17 +53,17 @@ export default function AreaChartCard({
                 <stop offset="100%" stopColor="#06b6d4" />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={surface.grid} vertical={false} />
             <XAxis
               dataKey={labelKey}
-              tick={{ fill: "#64748b", fontSize: 12 }}
+              tick={{ fill: surface.tick, fontSize: 12 }}
               axisLine={false}
               tickLine={false}
               dy={8}
             />
             <YAxis
               allowDecimals={false}
-              tick={{ fill: "#64748b", fontSize: 12 }}
+              tick={{ fill: surface.tick, fontSize: 12 }}
               axisLine={false}
               tickLine={false}
             />
