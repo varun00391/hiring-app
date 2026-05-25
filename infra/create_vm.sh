@@ -246,14 +246,26 @@ if resource_exists az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GR
     --output tsv)"
 
   if [[ -n "$PRINCIPAL_ID" && -n "$ACR_ID" ]]; then
-    # Role assignment is idempotent at the Azure level — duplicate returns existing
     log "Granting AcrPull to VM managed identity on ACR '$ACR_NAME'..."
-    az role assignment create \
+    if ! az role assignment create \
       --assignee-object-id "$PRINCIPAL_ID" \
       --assignee-principal-type ServicePrincipal \
       --role AcrPull \
       --scope "$ACR_ID" \
-      --output none 2>/dev/null || log "AcrPull role assignment already present or pending propagation."
+      --output none 2>/dev/null; then
+      if az role assignment list \
+        --assignee-object-id "$PRINCIPAL_ID" \
+        --scope "$ACR_ID" \
+        --role AcrPull \
+        --query "[0].id" \
+        --output tsv | grep -q .; then
+        log "AcrPull role assignment already present."
+      else
+        die "Failed to grant AcrPull to VM managed identity on ACR '$ACR_NAME'."
+      fi
+    else
+      log "AcrPull role assignment created."
+    fi
   else
     warn "Could not resolve VM identity or ACR ID — skip AcrPull assignment."
   fi

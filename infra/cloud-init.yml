@@ -94,7 +94,7 @@ write_files:
       export AZURE_CONFIG_DIR="/home/azureuser/app/.azure-cli"
       mkdir -p "$AZURE_CONFIG_DIR"
       chmod 700 "$AZURE_CONFIG_DIR"
-      az login --identity --output none
+      az login --identity --allow-no-subscriptions --output none
       az acr login --name "$ACR_NAME" --output none
 
       echo "[deploy] Pulling latest images..."
