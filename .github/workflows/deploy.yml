@@ -193,10 +193,11 @@ jobs:
           ACR_NAME="$(grep -m1 '^ACR_NAME=' .env | cut -d= -f2- | tr -d '\r"')"
           [[ -n "$ACR_NAME" ]] || { echo "ACR_NAME missing from .env" >&2; exit 1; }
 
-          # Azure CLI needs a writable config dir (default ~/.azure may be root-owned)
+          # Azure CLI / Docker need writable config dirs (default ~/.azure, ~/.docker may be root-owned)
           export AZURE_CONFIG_DIR="/home/azureuser/app/.azure-cli"
-          mkdir -p "$AZURE_CONFIG_DIR"
-          chmod 700 "$AZURE_CONFIG_DIR"
+          export DOCKER_CONFIG="/home/azureuser/app/.docker"
+          mkdir -p "$AZURE_CONFIG_DIR" "$DOCKER_CONFIG"
+          chmod 700 "$AZURE_CONFIG_DIR" "$DOCKER_CONFIG"
 
           echo "[remote] Logging into ACR..."
           az login --identity --allow-no-subscriptions --output none

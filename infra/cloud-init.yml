@@ -92,8 +92,9 @@ write_files:
 
       echo "[deploy] Logging into ACR via managed identity..."
       export AZURE_CONFIG_DIR="/home/azureuser/app/.azure-cli"
-      mkdir -p "$AZURE_CONFIG_DIR"
-      chmod 700 "$AZURE_CONFIG_DIR"
+      export DOCKER_CONFIG="/home/azureuser/app/.docker"
+      mkdir -p "$AZURE_CONFIG_DIR" "$DOCKER_CONFIG"
+      chmod 700 "$AZURE_CONFIG_DIR" "$DOCKER_CONFIG"
       az login --identity --allow-no-subscriptions --output none
       az acr login --name "$ACR_NAME" --output none
 
@@ -131,6 +132,7 @@ runcmd:
   # Add azureuser to docker group and enable Docker service
   # -------------------------------------------------------------------------
   - usermod -aG docker azureuser
+  - chown -R azureuser:azureuser /home/azureuser
   - systemctl enable docker
   - systemctl start docker
 
