@@ -104,11 +104,11 @@ jobs:
       - name: Wait for VM bootstrap
         run: |
           chmod +x infra/wait_for_vm.sh
+          export SSH_PRIVATE_KEY_FILE="${HOME}/.ssh/id_rsa"
           ./infra/wait_for_vm.sh
         env:
           VM_HOST: ${{ steps.vm.outputs.vm_public_ip }}
           VM_USERNAME: ${{ env.ADMIN_USERNAME }}
-          SSH_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
 
       # -----------------------------------------------------------------------
       # Summary — update GitHub secrets manually with these values if needed

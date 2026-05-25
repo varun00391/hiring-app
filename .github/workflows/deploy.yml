@@ -189,11 +189,9 @@ jobs:
           set -euo pipefail
           cd /home/azureuser/app
 
-          # Load ACR_NAME from .env for managed-identity login
-          set -a
-          # shellcheck disable=SC1091
-          source .env
-          set +a
+          # Read ACR_NAME without sourcing .env (values with spaces break bash source)
+          ACR_NAME="$(grep -m1 '^ACR_NAME=' .env | cut -d= -f2- | tr -d '\r"')"
+          [[ -n "$ACR_NAME" ]] || { echo "ACR_NAME missing from .env" >&2; exit 1; }
 
           echo "[remote] Logging into ACR..."
           az login --identity --output none

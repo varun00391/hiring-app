@@ -40,6 +40,12 @@ ssh_base_args=(
 )
 
 if [[ -n "$SSH_PRIVATE_KEY_FILE" ]]; then
+  # Expand leading ~ (env vars from GitHub Actions do not expand it)
+  if [[ "$SSH_PRIVATE_KEY_FILE" == "~/"* ]]; then
+    SSH_PRIVATE_KEY_FILE="${HOME}${SSH_PRIVATE_KEY_FILE:1}"
+  elif [[ "$SSH_PRIVATE_KEY_FILE" == "~" ]]; then
+    SSH_PRIVATE_KEY_FILE="$HOME"
+  fi
   [[ -f "$SSH_PRIVATE_KEY_FILE" ]] || die "SSH key file not found: $SSH_PRIVATE_KEY_FILE"
   ssh_base_args+=(-i "$SSH_PRIVATE_KEY_FILE")
 fi
