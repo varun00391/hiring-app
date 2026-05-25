@@ -46,9 +46,6 @@ write_files:
             - "8000:8000"
           env_file:
             - .env
-          environment:
-            # Override CORS for production frontend origin if set in .env
-            - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:8080"]}
           volumes:
             - upload-tmp:/tmp/hirebot/uploads
             - app-data:/tmp/hirebot/data

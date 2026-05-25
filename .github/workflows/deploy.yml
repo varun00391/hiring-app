@@ -149,7 +149,7 @@ jobs:
           {
             echo ""
             echo "# --- Injected by GitHub Actions deploy workflow ---"
-            echo "CORS_ORIGINS=${{ steps.vm.outputs.cors_origins }}"
+            echo 'CORS_ORIGINS=${{ steps.vm.outputs.cors_origins }}'
             echo "ACR_LOGIN_SERVER=${{ steps.acr.outputs.login_server }}"
             echo "IMAGE_TAG=${{ env.IMAGE_TAG }}"
             echo "ACR_NAME=${{ env.ACR_NAME }}"
